@@ -3,6 +3,15 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+group=podman
+# Re-launch the script with podman as the primary group.
+# Needed because we just created the group and added the GHA runner use to it.
+# Avoids running podman as root.
+if [ $(id -gn) != $group ]; then
+  exec sg $group "$0 $*"
+fi
+
+
 # Download the schema
 curl -o api.json "http://localhost:24817/pulp/api/v3/docs/api.json?bindings&plugin=$1"
 # Get the version of the pulpcore or plugin as reported by status API
@@ -17,7 +26,7 @@ fi
 echo ::group::BINDINGS
 if [ $2 = 'python' ]
 then
-    docker run -u $(id -u) --rm -v ${PWD}:/local openapitools/openapi-generator-cli:v4.3.1 generate \
+    podman run -u $(id -u) --rm -v ${PWD}:/local openapitools/openapi-generator-cli:v4.3.1 generate \
         -i /local/api.json \
         -g python \
         -o /local/$1-client \
@@ -31,7 +40,7 @@ fi
 if [ $2 = 'ruby' ]
 then
     python3 remove-cookie-auth.py
-    docker run -u $(id -u) --rm -v ${PWD}:/local openapitools/openapi-generator-cli:v4.2.3 generate \
+    podman run -u $(id -u) --rm -v ${PWD}:/local openapitools/openapi-generator-cli:v4.2.3 generate \
         -i /local/api.json \
         -g ruby \
         -o /local/$1-client \
